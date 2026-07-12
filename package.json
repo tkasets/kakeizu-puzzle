@@ -1,0 +1,23 @@
+{
+  "name": "kakeizu-expo",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "expo": "~54.0.35",
+    "expo-dev-client": "~6.0.21",
+    "expo-status-bar": "~3.0.9",
+    "expo-tracking-transparency": "~6.0.8",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-google-mobile-ads": "^16.4.0",
+    "react-native-webview": "13.15.0"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "sync-html": "node scripts/sync-html.js"
+  },
+  "private": true
+}

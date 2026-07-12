@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "家系図パズル",
+    "slug": "kakeizu-expo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tkasets.kakeizu",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.tkasets.kakeizu",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-1081803676733486~4996593221",
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "delayAppMeasurementInit": true
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "この識別子は、あなたに関連性の高い広告を表示するために使用されます。"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "53afa124-3697-4e2a-a67b-691240425eb9"
+      }
+    }
+  }
+}
