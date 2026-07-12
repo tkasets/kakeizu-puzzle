@@ -32,6 +32,11 @@ body{
   min-height:100vh;
   margin:-22px -12px -60px; /* bodyのpaddingを打ち消し、画面いっぱいに使う */
 }
+/* 画面が盤面幅(760px)より広い＝PC等では左右autoで中央寄せする。
+   （負の左右marginのままだと760px幅の盤面が左端に張り付いてしまうため） */
+@media (min-width:784px){
+  .wrap.game{ margin-left:auto; margin-right:auto; }
+}
 .board-wrap{ flex:1 1 auto; min-height:0; padding:0 12px; display:flex; }
 .board-wrap .board{ flex:1 1 auto; }
 .header{ text-align:center; margin-bottom:12px; }
@@ -56,6 +61,22 @@ body{
   flex-shrink:0;
 }
 .btn-rule:hover{ color:var(--ink); border-color:var(--ink); }
+/* リセット（注意色。ルールボタンの隣に置く） */
+.btn-reset{
+  font-family:inherit; font-size:13px; font-weight:700; color:var(--ng);
+  background:transparent; border:1px solid var(--ng); border-radius:20px; padding:7px 12px; cursor:pointer;
+  flex-shrink:0;
+}
+.btn-reset:hover{ color:#fff; background:var(--ng); }
+/* 確認・選択モーダルの本文とボタン列 */
+.modal-lead{ font-size:14px; line-height:1.8; color:var(--ink); text-align:center; margin:0 0 20px; }
+.modal-actions{ display:flex; gap:10px; margin-top:4px; }
+.modal-btn{
+  flex:1; font-family:inherit; font-size:14px; font-weight:700; border-radius:6px;
+  padding:13px; cursor:pointer; border:1px solid var(--ink); background:transparent; color:var(--ink);
+}
+.modal-btn.primary{ background:var(--ink); color:#fff; }
+.modal-btn.danger{ background:var(--ng); color:#fff; border-color:var(--ng); }
 /* ルールモーダル */
 .modal-backdrop{
   position:fixed; inset:0; background:rgba(44,41,37,0.45); z-index:100;
@@ -74,6 +95,44 @@ body{
 .rule-list li{ font-size:13px; line-height:1.9; color:var(--ink); margin-bottom:8px; }
 .rule-list b{ color:var(--ink); }
 .btn-close-rule{ background:var(--ink); color:#fff; width:100%; border-radius:6px; padding:12px; }
+/* ===== 動画広告オーバーレイ（「答え」を見る前に表示） =====
+   現在はプレースホルダー（カウントダウン）。将来 AdSense H5 Games Ads の
+   rewarded(adBreak) に差し替える想定。 */
+.ad-backdrop{
+  position:fixed; inset:0; background:rgba(20,18,16,0.85); z-index:120;
+  display:none; align-items:center; justify-content:center; padding:20px;
+}
+.ad-backdrop.show{ display:flex; }
+.ad-box{
+  position:relative; width:100%; max-width:420px; background:#1c1a17; border-radius:12px; overflow:hidden;
+  box-shadow:0 20px 50px rgba(0,0,0,0.55);
+}
+.ad-badge{
+  display:inline-block; font-size:11px; font-weight:700; color:#fff; letter-spacing:0.1em;
+  background:rgba(255,255,255,0.18); padding:3px 9px; border-radius:4px; margin:10px 0 0 10px;
+}
+.ad-close{
+  position:absolute; top:8px; right:8px; width:30px; height:30px; border:none; border-radius:50%;
+  background:rgba(255,255,255,0.15); color:#fff; font-size:15px; line-height:1; cursor:pointer; z-index:2;
+}
+.ad-close:hover{ background:rgba(255,255,255,0.3); }
+.ad-screen{
+  position:relative; min-height:200px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:14px; color:#fff; padding:24px 16px 20px;
+}
+.ad-spinner{
+  width:44px; height:44px; border:4px solid rgba(255,255,255,0.25); border-top-color:#fff;
+  border-radius:50%; animation:adspin 0.9s linear infinite;
+}
+@keyframes adspin{ to{ transform:rotate(360deg); } }
+.ad-msg{ font-size:14px; opacity:0.92; text-align:center; }
+.ad-msg b{ font-size:18px; }
+.ad-progress{ position:absolute; left:0; bottom:0; height:4px; background:var(--ok); width:0%; transition:width 0.25s linear; }
+.ad-proceed{
+  display:block; width:100%; border:none; font-family:inherit; font-size:15px; font-weight:700;
+  padding:15px; background:#39352f; color:#8a847a; cursor:not-allowed;
+}
+.ad-proceed.ready{ background:var(--ok); color:#fff; cursor:pointer; }
 .legend span{ display:flex; align-items:center; gap:6px; }
 .leg{ display:inline-block; width:26px; height:12px; position:relative; }
 .leg.fuufu::before,.leg.fuufu::after{ content:""; position:absolute; left:0; right:0; height:0; border-top:2px solid var(--rel); }
@@ -327,6 +386,7 @@ button.action{ font-family:inherit; font-weight:700; font-size:13px; letter-spac
   <div class="game-top">
     <button class="btn-back" id="backBtn">← 一覧へ</button>
     <div class="title" id="gameTitle">家系図パズル</div>
+    <button class="btn-reset" id="resetBtn">リセット</button>
     <button class="btn-rule" id="ruleBtn">ルール</button>
   </div>
 
@@ -372,6 +432,44 @@ button.action{ font-family:inherit; font-weight:700; font-size:13px; letter-spac
       <li>全部正しくつなぐと自動で〇。左下の<b>「答え」長押し</b>でヒントが見られます。</li>
     </ul>
     <button class="action btn-close-rule" id="closeRuleBtn">とじる</button>
+  </div>
+</div>
+
+<!-- ===== 続きから / 最初から 選択モーダル ===== -->
+<div class="modal-backdrop" id="resumeModal">
+  <div class="modal">
+    <h2 class="modal-title">前回の続き</h2>
+    <p class="modal-lead">この問題は前回の途中経過があります。<br>どうしますか？</p>
+    <div class="modal-actions">
+      <button class="modal-btn" id="restartBtn">最初から</button>
+      <button class="modal-btn primary" id="resumeBtn">続きから</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 動画広告オーバーレイ（「答え」の前に表示） ===== -->
+<div class="ad-backdrop" id="adModal">
+  <div class="ad-box">
+    <span class="ad-badge">広告</span>
+    <button class="ad-close" id="adClose" aria-label="閉じる">✕</button>
+    <div class="ad-screen">
+      <div class="ad-spinner" id="adSpinner"></div>
+      <div class="ad-msg" id="adMsg">広告を再生中… <b id="adCount">5</b> 秒</div>
+      <div class="ad-progress" id="adProgress"></div>
+    </div>
+    <button class="ad-proceed" id="adProceed" disabled>答えを見る →</button>
+  </div>
+</div>
+
+<!-- ===== リセット確認モーダル ===== -->
+<div class="modal-backdrop" id="resetModal">
+  <div class="modal">
+    <h2 class="modal-title">リセット</h2>
+    <p class="modal-lead">この問題を最初からやり直しますか？<br>今の配置・線は消えます。</p>
+    <div class="modal-actions">
+      <button class="modal-btn" id="resetCancelBtn">やめる</button>
+      <button class="modal-btn danger" id="resetOkBtn">リセットする</button>
+    </div>
   </div>
 </div>
 
@@ -3507,6 +3605,9 @@ const svg=document.getElementById("lines");
 const resultEl=document.getElementById("result");
 
 let pos={}, userLinks=[], cardEls={};
+let boardDirty=false; // この問題で何か操作したか（未操作なら途中経過を保存しない）
+let pendingResumeIdx=null; // 「続きから／最初から」選択待ちの問題index
+let adUnlockedProblem=-1; // 答え広告を見終わった問題index（同一問題では再表示しない）
 // 「答え」表示中かどうか（表示中は盤面操作を止める）。表示前の状態を退避しておく。
 let peekBackup=null;
 let allowSoloParent=false; // 配偶者なしの単独親子タップを許可するか（問題ごとに設定）
@@ -3666,7 +3767,7 @@ function attachCard(el,id){
     // ドラッグに切り替わった後（edgeHitがnullになった後）はここを通る。
     if(edgeHit) return;
     const p=pointer(e); const s=worldSize();
-    if(Math.abs(p.x-sx)+Math.abs(p.y-sy)>4) moved=true;
+    if(Math.abs(p.x-sx)+Math.abs(p.y-sy)>4){ moved=true; boardDirty=true; }
     // スクリーン移動量 → world比率（ズーム考慮）
     const dx=(p.x-sx)/(s.w*zoom), dy=(p.y-sy)/(s.h*zoom);
     pos[id].x=Math.min(0.99,Math.max(0.01,ox+dx));
@@ -3814,6 +3915,7 @@ function finalizeLink(a,b,rel,spouse){
   const entry = (spouse!==undefined) ? {a,b,rel,spouse} : {a,b,rel};
   if(idx>=0) userLinks[idx]=entry;
   else userLinks.push(entry);
+  boardDirty=true;
   clearPending(); resetHint();
   updateCount(); drawLines();
   autoCheck();
@@ -4258,6 +4360,7 @@ function deleteLink(idx){
   } else {
     userLinks.splice(idx,1);
   }
+  boardDirty=true;
   updateCount(); drawLines();
   autoCheck();
 }
@@ -4292,6 +4395,7 @@ function autoCheck(){
 
   // 全部正解！
   cleared.add(currentProblem);
+  clearWip(currentProblem); // 正解したら途中経過は破棄（「続きから」を出さない）
   showCorrectMark();
   const nextBtn=document.getElementById("nextBtn");
   nextBtn.textContent = hasNextInCategory() ? "次の問題へ →" : "一覧に戻る";
@@ -4674,9 +4778,25 @@ board.addEventListener("pointercancel",endPointer);
 function centerView(){
   zoom=1;
   const r=boardRect(); const s=worldSize();
-  // world中央がboard中央に来るように
-  panX=r.width/2 - (s.w/2)*zoom;
-  panY=r.height/2 - (s.h/2)*zoom;
+  // 実際に配置されているカード群の外接範囲の中心を board 中央に合わせる。
+  // world の幾何中心ではなく実カード位置を基準にすることで、問題ごとに非対称な
+  // 初期配置でも左右・上下に寄らず中央に表示される。
+  const ids=Object.keys(pos);
+  if(ids.length){
+    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    ids.forEach(id=>{
+      const x=pos[id].x, y=pos[id].y;
+      if(x<minX)minX=x; if(x>maxX)maxX=x;
+      if(y<minY)minY=y; if(y>maxY)maxY=y;
+    });
+    const cx=((minX+maxX)/2)*s.w; // カード群中心の world px
+    const cy=((minY+maxY)/2)*s.h;
+    panX=r.width/2 - cx*zoom;
+    panY=r.height/2 - cy*zoom;
+  } else {
+    panX=r.width/2 - (s.w/2)*zoom;
+    panY=r.height/2 - (s.h/2)*zoom;
+  }
   clampPan(); applyTransform();
 }
 
@@ -4798,7 +4918,59 @@ function buildCover(){
   });
 }
 
+// ===== 作業中（途中経過）の保存・復元 =====
+// 問題ごとに pos（配置）と userLinks（線）を localStorage に保存し、再び開いたときに
+// 「続きから／最初から」を選べるようにする。何も操作していない初期状態や正解済みは保存しない。
+function wipKey(idx){
+  const p=PROBLEMS[idx];
+  return "kakeizu_wip_v1_" + (p ? p.title : String(idx));
+}
+function saveWip(){
+  if(!PROBLEMS[currentProblem]) return;
+  if(!boardDirty) return;                 // 手を付けていなければ保存しない
+  if(cleared.has(currentProblem)) return; // 正解済みは続きを持たない
+  try{
+    localStorage.setItem(wipKey(currentProblem), JSON.stringify({ pos:pos, userLinks:userLinks }));
+  }catch(e){}
+}
+function loadWip(idx){
+  try{ const r=localStorage.getItem(wipKey(idx)); return r ? JSON.parse(r) : null; }
+  catch(e){ return null; }
+}
+function clearWip(idx){ try{ localStorage.removeItem(wipKey(idx)); }catch(e){} }
+function hasWip(idx){ const d=loadWip(idx); return !!(d && d.pos && d.userLinks); }
+// 保存済みの配置・線を、フレッシュ読み込み直後の盤面に上書き適用する。
+// posは初期状態で全カード分そろっているので、そこへ上書きすることで欠けが出ない。
+function applyWip(data){
+  if(!data || !data.pos) return;
+  Object.keys(data.pos).forEach(k=>{
+    if(pos[k]){ pos[k].x=data.pos[k].x; pos[k].y=data.pos[k].y; }
+    else { pos[k]={x:data.pos[k].x, y:data.pos[k].y}; }
+  });
+  if(Array.isArray(data.userLinks)){
+    userLinks.length=0;
+    data.userLinks.forEach(l=>userLinks.push(l));
+  }
+  clearPending(); closePill();
+  cards.forEach(c=>{ if(cardEls[c.id]) placeCard(c.id); });
+  updateCount(); drawLines(); autoCheck();
+  boardDirty=true; // 復元した時点で「途中」扱い
+}
+// 途中経過があれば「続きから／最初から」を尋ねる（フレッシュ盤面の上にモーダル表示）
+function maybeOfferResume(idx){
+  if(!hasWip(idx)) return;
+  pendingResumeIdx=idx;
+  document.getElementById("resumeModal").classList.add("show");
+}
+// 現在の問題を最初からやり直す（保存も消す）
+function resetCurrentProblem(){
+  if(!PROBLEMS[currentProblem]) return;
+  clearWip(currentProblem);
+  selectProblem(currentProblem); // フレッシュに読み直し（保存が無いのでチューザーは出ない）
+}
+
 function showCover(){
+  saveWip(); // 一覧に戻る前に途中経過を保存
   gameScreen.classList.add("hidden");
   coverScreen.classList.remove("hidden");
   buildCover();
@@ -4862,6 +5034,10 @@ function selectProblem(idx){
   cards.forEach(c=>placeCard(c.id));
   drawLines();
   autoCheck(); // 妻を繋いだだけで正解になるケースは通常ないが、念のため状態を反映
+
+  boardDirty=false;            // フレッシュ読み込み直後は未操作
+  adUnlockedProblem=-1;        // 問題が変わったら答え広告を再度要求する
+  maybeOfferResume(currentProblem); // 途中経過があれば「続きから／最初から」を尋ねる
 }
 
 // 次の問題へ（同じカテゴリ内で完結。最後まで行ったら一覧に戻る）
@@ -4882,6 +5058,33 @@ const ruleModal=document.getElementById("ruleModal");
 document.getElementById("ruleBtn").addEventListener("click",()=>ruleModal.classList.add("show"));
 document.getElementById("closeRuleBtn").addEventListener("click",()=>ruleModal.classList.remove("show"));
 ruleModal.addEventListener("click",(e)=>{ if(e.target===ruleModal) ruleModal.classList.remove("show"); });
+
+// 続きから / 最初から（誤操作防止のため背景タップでは閉じない＝必ずどちらか選ぶ）
+const resumeModal=document.getElementById("resumeModal");
+document.getElementById("resumeBtn").addEventListener("click",()=>{
+  resumeModal.classList.remove("show");
+  if(pendingResumeIdx!=null) applyWip(loadWip(pendingResumeIdx));
+  pendingResumeIdx=null;
+});
+document.getElementById("restartBtn").addEventListener("click",()=>{
+  resumeModal.classList.remove("show");
+  if(pendingResumeIdx!=null) clearWip(pendingResumeIdx); // 最初から＝途中経過は破棄
+  pendingResumeIdx=null;
+});
+
+// リセット（確認モーダル経由）
+const resetModal=document.getElementById("resetModal");
+document.getElementById("resetBtn").addEventListener("click",()=>resetModal.classList.add("show"));
+document.getElementById("resetCancelBtn").addEventListener("click",()=>resetModal.classList.remove("show"));
+document.getElementById("resetOkBtn").addEventListener("click",()=>{
+  resetModal.classList.remove("show");
+  resetCurrentProblem();
+});
+resetModal.addEventListener("click",(e)=>{ if(e.target===resetModal) resetModal.classList.remove("show"); });
+
+// アプリをバックグラウンドに送った/閉じたときも途中経過を保存
+document.addEventListener("visibilitychange",()=>{ if(document.hidden) saveWip(); });
+window.addEventListener("pagehide", saveWip);
 
 // ===== 輪郭（コンター）ベースのツリー配置（答えプレビュー・整列ボタン共通） =====
 // 「深い子孫の連鎖」が無駄に横幅を要求しないよう、各世代(深さ)ごとに実際に必要な幅だけを見て
@@ -5543,15 +5746,84 @@ function peekEnd(){
   cards.forEach(c=>placeCard(c.id)); drawLines();
 }
 const peekBtn=document.getElementById("peekBtn");
-// 答えはクリックでトグル表示（もう一度押すと問題に戻る）
-function peekToggle(){
-  if(peekBackup) peekEnd();
-  else peekStart();
-  // ボタンの見た目とラベルを状態に合わせる
+function updatePeekBtn(){
   peekBtn.textContent = peekBackup ? "問題に戻る" : "答え";
   peekBtn.classList.toggle("peeking", !!peekBackup);
 }
+// 答えはクリックでトグル表示（もう一度押すと問題に戻る）。
+// 「答えを表示する方向」のときだけ、先に動画広告を挟む。
+// 一度その問題で広告を見たら、同じ問題を開いている間は再表示しない（adUnlockedProblem）。
+function peekToggle(){
+  if(peekBackup){          // 答え表示中 → 問題に戻る（広告なし）
+    peekEnd(); updatePeekBtn(); return;
+  }
+  const doReveal=()=>{ peekStart(); updatePeekBtn(); };
+  if(adUnlockedProblem===currentProblem){ doReveal(); return; } // この問題は広告視聴済み
+  showAdThenReveal(()=>{ adUnlockedProblem=currentProblem; doReveal(); });
+}
 peekBtn.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); peekToggle(); });
+
+// ===== 動画広告ゲート =====
+// 「答え」を表示する前に広告を見せ、完了したら onReward() を呼ぶ共通入口。
+// 現状はプレースホルダー（カウントダウン）。将来ここを分岐させる:
+//   ・Web  → AdSense H5 Games Ads の adBreak({type:'reward', ...})
+//   ・アプリ → window.ReactNativeWebView 経由で AdMob のリワード動画
+const AD_SECONDS=5;
+let _adTimer=null;
+function showAdThenReveal(onReward){
+  // アプリ（WebView）内なら、ネイティブの AdMob リワード動画を要求する。
+  if(window.ReactNativeWebView){
+    // ネイティブ側が視聴結果を返してくる（true=報酬あり→答え表示 / false=途中で閉じた→表示しない）
+    window.__onAdFinished=function(rewarded){
+      window.__onAdFinished=null;
+      if(rewarded) onReward();
+    };
+    try{
+      window.ReactNativeWebView.postMessage('SHOW_REWARDED_AD');
+    }catch(e){
+      window.__onAdFinished=null; onReward(); // 通信できなければ答えをブロックしない
+    }
+    return;
+  }
+  // Web はプレースホルダー（将来 AdSense H5 Games Ads の adBreak に差し替え）
+  playPlaceholderAd(onReward);
+}
+function playPlaceholderAd(onReward){
+  const modal=document.getElementById("adModal");
+  const countEl=document.getElementById("adCount");
+  const msgEl=document.getElementById("adMsg");
+  const proceed=document.getElementById("adProceed");
+  const bar=document.getElementById("adProgress");
+  const spinner=document.getElementById("adSpinner");
+  let remain=AD_SECONDS;
+  msgEl.innerHTML='広告を再生中… <b id="adCount">'+remain+'</b> 秒';
+  spinner.style.display="";
+  proceed.disabled=true; proceed.classList.remove("ready"); proceed.textContent="答えを見る →";
+  bar.style.width="0%";
+  modal.classList.add("show");
+  if(_adTimer) clearInterval(_adTimer);
+  _adTimer=setInterval(()=>{
+    remain--;
+    const c=document.getElementById("adCount"); if(c) c.textContent=Math.max(0,remain);
+    bar.style.width=((AD_SECONDS-remain)/AD_SECONDS*100)+"%";
+    if(remain<=0){
+      clearInterval(_adTimer); _adTimer=null;
+      spinner.style.display="none";
+      msgEl.textContent="広告は以上です。答えを表示できます。";
+      proceed.disabled=false; proceed.classList.add("ready");
+    }
+  },1000);
+  const closeBtn=document.getElementById("adClose");
+  const cleanup=()=>{ if(_adTimer){ clearInterval(_adTimer); _adTimer=null; } proceed.onclick=null; closeBtn.onclick=null; };
+  proceed.onclick=()=>{
+    if(proceed.disabled) return;
+    modal.classList.remove("show");
+    cleanup();
+    onReward(); // 最後まで見た → 答えを表示
+  };
+  // ✕で閉じた場合は報酬なし（答えは表示しない）
+  closeBtn.onclick=()=>{ modal.classList.remove("show"); cleanup(); };
+}
 
 // 答え表示中、レイアウトが崩れて見える場合に手動で計算し直せる「再配置」ボタン
 const peekRelayoutBtn=document.getElementById("peekRelayoutBtn");
