@@ -29,6 +29,8 @@ const REWARDED_UNIT_ID = __DEV__
 
 // 「答え」を押した時点でまだ広告が読み込めていない場合に、あきらめるまで待つ時間。
 const LOAD_WAIT_MS = 8000;
+// 広告が取得できなかった理由を画面に出しておく時間（そのあと答えを通す）。
+const ERROR_SHOW_MS = 2200;
 
 export default function App() {
   const webRef = useRef(null);
@@ -105,9 +107,21 @@ export default function App() {
       })
     );
     unsub.push(
-      ad.addAdEventListener(AdEventType.ERROR, () => {
-        // 広告が出せない時は答えをブロックしない（true で通す）
-        if (pendingRef.current) finish(true);
+      ad.addAdEventListener(AdEventType.ERROR, (error) => {
+        // 広告が出せない時は答えをブロックしない（true で通す）。
+        // ただし理由（no-fill＝在庫なし/審査待ち、設定ミス等）が分からないと切り分けできないので、
+        // 「答え」を待たせている最中のエラーは、理由を画面に出してから答えを通す。
+        const code = String(
+          (error && (error.code || error.message)) || 'unknown'
+        );
+        if (pendingRef.current) {
+          sendToWeb(
+            'window.__onAdError && window.__onAdError(' +
+              JSON.stringify(code) +
+              ')'
+          );
+          setTimeout(() => finish(true), ERROR_SHOW_MS);
+        }
         detach();
         setTimeout(preloadAd, 4000);
       })
@@ -115,7 +129,7 @@ export default function App() {
 
     adRef.current = ad;
     ad.load();
-  }, [finish]);
+  }, [finish, sendToWeb]);
 
   // 起動時: ATT（トラッキング許可）→ SDK 初期化 → 先読み
   useEffect(() => {

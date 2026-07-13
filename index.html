@@ -166,7 +166,9 @@ body{
   box-shadow:0 2px 6px rgba(44,41,37,0.15); line-height:1;
 }
 .zoom-ctrl button:active{ background:#eee; }
-svg.lines{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+/* サイズと位置は setSvgSize() が world 座標で直接指定する（world外にはみ出す配置でも
+   線がクリップされないよう、描画範囲をカード群まで広げるため） */
+svg.lines{ position:absolute; left:0; top:0; overflow:visible; pointer-events:none; z-index:1; }
 
 .card{
   position:absolute; transform:translate(-50%,-50%);
@@ -4045,6 +4047,7 @@ function spouseOf(id){
 }
 
 function drawLines(mark){
+  setSvgSize(); // カードがworld外に出ていても線が切れないよう、描画範囲を今の配置に合わせ直す
   let html="";
   // 夫婦・元夫婦を先に描く（間に他カードがあれば上に迂回）
   userLinks.filter(l=>l.rel==="fuufu"||l.rel==="moto").forEach(l=>{
@@ -4677,12 +4680,28 @@ function resetLinks(){
 }
 
 // ===== ズーム / パン =====
+// SVGの描画範囲を決める。worldぴったり(0,0,w,h)にすると、worldの外に出たカードへ引く線が
+// viewBoxでクリップされて消える。worldは「盤面サイズ×WORLD_SCALE」なので画面が狭いほど小さく、
+// 一方カードはCSSで固定サイズ。そのためカード数の多い問題をスマホで開くと、答えの配置が
+// worldをはみ出す（＝線だけ描かれない箇所ができる）。実際のカード範囲を包むようにSVGを広げる。
+const SVG_PAD=300; // カードの外に出る線（幹線・迂回・カード半分）を収めるための余白(world px)
 function setSvgSize(){
   const s=worldSize();
-  svg.setAttribute("width", s.w);
-  svg.setAttribute("height", s.h);
-  svg.setAttribute("viewBox", `0 0 ${s.w} ${s.h}`);
-  svg.style.width=s.w+"px"; svg.style.height=s.h+"px";
+  let minX=0, minY=0, maxX=s.w, maxY=s.h;
+  Object.keys(pos).forEach(id=>{
+    const p=pos[id]; if(!p) return;
+    const x=p.x*s.w, y=p.y*s.h;
+    if(x<minX)minX=x; if(x>maxX)maxX=x;
+    if(y<minY)minY=y; if(y>maxY)maxY=y;
+  });
+  minX-=SVG_PAD; minY-=SVG_PAD; maxX+=SVG_PAD; maxY+=SVG_PAD;
+  const w=maxX-minX, h=maxY-minY;
+  // 線の座標は world 座標のままなので、viewBoxの原点をずらしてSVG自体も同じだけ左上へ動かす
+  svg.setAttribute("width", w);
+  svg.setAttribute("height", h);
+  svg.setAttribute("viewBox", `${minX} ${minY} ${w} ${h}`);
+  svg.style.left=minX+"px"; svg.style.top=minY+"px";
+  svg.style.width=w+"px"; svg.style.height=h+"px";
 }
 function clampPan(){
   // worldがboardを完全に外れない程度にゆるく制限
@@ -5785,9 +5804,12 @@ let _adTimer=null;
 function showAdThenReveal(onReward){
   // アプリ（WebView）内なら、ネイティブの AdMob リワード動画を要求する。
   if(window.ReactNativeWebView){
-    const done=()=>{ window.__onAdFinished=null; window.__onAdLoading=null; hideAdModal(); };
+    const done=()=>{ window.__onAdFinished=null; window.__onAdLoading=null; window.__onAdError=null; hideAdModal(); };
     // 広告がまだ先読みできていない間は「準備中」を出して待つ（すぐ答えを出してしまわない）
     window.__onAdLoading=function(){ showAdLoading(); };
+    // 広告が取得できなかったとき、理由（no-fill=在庫なし/審査待ち、設定ミス等）を画面に出す。
+    // 答えはこのあとネイティブ側から通されるので、ここでは表示を差し替えるだけ。
+    window.__onAdError=function(code){ showAdError(code); };
     // ネイティブ側が視聴結果を返してくる（true=報酬あり→答え表示 / false=途中で閉じた→表示しない）
     window.__onAdFinished=function(rewarded){
       done();
@@ -5808,6 +5830,15 @@ function showAdLoading(){
   const modal=document.getElementById("adModal");
   document.getElementById("adMsg").textContent="広告を準備中…";
   document.getElementById("adSpinner").style.display="";
+  document.getElementById("adProgress").style.width="0%";
+  document.getElementById("adProceed").style.display="none";
+  document.getElementById("adClose").style.display="none";
+  modal.classList.add("show");
+}
+function showAdError(code){
+  const modal=document.getElementById("adModal");
+  document.getElementById("adSpinner").style.display="none";
+  document.getElementById("adMsg").textContent="広告を取得できませんでした（"+code+"）";
   document.getElementById("adProgress").style.width="0%";
   document.getElementById("adProceed").style.display="none";
   document.getElementById("adClose").style.display="none";
