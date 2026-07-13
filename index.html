@@ -3734,8 +3734,10 @@ function presetSpousesOf(id){
 function attachCard(el,id){
   let sx,sy,ox,oy,moved,edgeHit;
   let followers=[]; // 一緒に動かす配偶者(roleカード)の初期位置
-  let longPressTimer=null;
-  const LONG_PRESS_MS=380; // これより長く押し続けたら、端をつかんでいてもドラッグに切り替える
+  // 端（夫婦・単独親の当たり判定）での「接続」は、指を動かさずに離したタップで成立する。
+  // よって端をつかんでいても、この距離を超えて指が動いた時点で「カードの移動」に切り替える。
+  // 端をつかんだ時だけ待たされる、という操作感を避けるため（時間では待たない）。
+  const DRAG_SLOP=6;
   const onDown=(e)=>{
     if(peekBackup) return; // 答え表示中は操作できない
     e.preventDefault(); e.stopPropagation(); closePill();
@@ -3746,26 +3748,16 @@ function attachCard(el,id){
     el.classList.add("dragging");
     window.addEventListener("pointermove",onMove);
     window.addEventListener("pointerup",onUp);
-
-    // 端（夫婦・単独親の当たり判定）をつかんでいても、そのまま指を動かさず
-    // 長押しし続けたら「線を引く操作」ではなく「カードの移動」とみなし、
-    // ドラッグできるように切り替える。当たり判定が広くてドラッグしにくい
-    // という声に対応するため。
-    if(edgeHit){
-      if(longPressTimer) clearTimeout(longPressTimer);
-      longPressTimer=setTimeout(()=>{
-        longPressTimer=null;
-        edgeHit=null;
-        // 長押しが確定した時点を新たな基準点にする（切り替わった瞬間にカードが飛ばないように）
-        sx=p.x; sy=p.y; ox=pos[id].x; oy=pos[id].y;
-        followers = presetSpousesOf(id).map(sid=>({id:sid, ox:pos[sid].x, oy:pos[sid].y}));
-      }, LONG_PRESS_MS);
-    }
   };
   const onMove=(e)=>{
-    // 端をつかんだ時はドラッグ移動しない（接続モード）。ただし長押しで
-    // ドラッグに切り替わった後（edgeHitがnullになった後）はここを通る。
-    if(edgeHit) return;
+    // 端をつかんだまま指を動かしたら、接続ではなく移動とみなして即ドラッグに切り替える。
+    // 基準点(sx,sy,ox,oy)は押した瞬間のままなので、指の動きに1:1で追従する。
+    if(edgeHit){
+      const q=pointer(e);
+      if(Math.abs(q.x-sx)+Math.abs(q.y-sy)<=DRAG_SLOP) return; // まだタップかもしれない
+      edgeHit=null;
+      followers = presetSpousesOf(id).map(sid=>({id:sid, ox:pos[sid].x, oy:pos[sid].y}));
+    }
     const p=pointer(e); const s=worldSize();
     if(Math.abs(p.x-sx)+Math.abs(p.y-sy)>4){ moved=true; boardDirty=true; }
     // スクリーン移動量 → world比率（ズーム考慮）
@@ -3782,7 +3774,6 @@ function attachCard(el,id){
     drawLines();
   };
   const onUp=(e)=>{
-    if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer=null; }
     el.classList.remove("dragging");
     window.removeEventListener("pointermove",onMove);
     window.removeEventListener("pointerup",onUp);
@@ -5794,20 +5785,38 @@ let _adTimer=null;
 function showAdThenReveal(onReward){
   // アプリ（WebView）内なら、ネイティブの AdMob リワード動画を要求する。
   if(window.ReactNativeWebView){
+    const done=()=>{ window.__onAdFinished=null; window.__onAdLoading=null; hideAdModal(); };
+    // 広告がまだ先読みできていない間は「準備中」を出して待つ（すぐ答えを出してしまわない）
+    window.__onAdLoading=function(){ showAdLoading(); };
     // ネイティブ側が視聴結果を返してくる（true=報酬あり→答え表示 / false=途中で閉じた→表示しない）
     window.__onAdFinished=function(rewarded){
-      window.__onAdFinished=null;
+      done();
       if(rewarded) onReward();
     };
     try{
       window.ReactNativeWebView.postMessage('SHOW_REWARDED_AD');
     }catch(e){
-      window.__onAdFinished=null; onReward(); // 通信できなければ答えをブロックしない
+      done(); onReward(); // 通信できなければ答えをブロックしない
     }
     return;
   }
   // Web はプレースホルダー（将来 AdSense H5 Games Ads の adBreak に差し替え）
   playPlaceholderAd(onReward);
+}
+// ネイティブ広告の読み込み待ち表示（カウントダウンではなくスピナーだけ）
+function showAdLoading(){
+  const modal=document.getElementById("adModal");
+  document.getElementById("adMsg").textContent="広告を準備中…";
+  document.getElementById("adSpinner").style.display="";
+  document.getElementById("adProgress").style.width="0%";
+  document.getElementById("adProceed").style.display="none";
+  document.getElementById("adClose").style.display="none";
+  modal.classList.add("show");
+}
+function hideAdModal(){
+  document.getElementById("adModal").classList.remove("show");
+  document.getElementById("adProceed").style.display="";
+  document.getElementById("adClose").style.display="";
 }
 function playPlaceholderAd(onReward){
   const modal=document.getElementById("adModal");
