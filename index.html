@@ -4395,6 +4395,7 @@ function autoCheck(){
 
   // 全部正解！
   cleared.add(currentProblem);
+  saveCleared();
   clearWip(currentProblem); // 正解したら途中経過は破棄（「続きから」を出さない）
   showCorrectMark();
   const nextBtn=document.getElementById("nextBtn");
@@ -4806,7 +4807,27 @@ window.addEventListener("resize",()=>{ setSvgSize(); cards.forEach(c=>placeCard(
 // ===== 画面遷移・問題管理 =====
 const coverScreen=document.getElementById("coverScreen");
 const gameScreen=document.getElementById("gameScreen");
-const cleared=new Set(); // クリア済み問題index
+// ===== クリア済みの保存 =====
+// アプリ／ブラウザを閉じても ✓ が残るよう localStorage に保存する。
+// 保存する中身は index ではなくタイトル。問題を追加・並べ替えしても記録がズレない。
+const CLEARED_KEY="kakeizu_cleared_v1";
+function loadCleared(){
+  const s=new Set();
+  try{
+    const raw=localStorage.getItem(CLEARED_KEY);
+    if(!raw) return s;
+    const titles=new Set(JSON.parse(raw));
+    PROBLEMS.forEach((p,i)=>{ if(titles.has(p.title)) s.add(i); });
+  }catch(e){}
+  return s;
+}
+function saveCleared(){
+  try{
+    const titles=[...cleared].map(i=>PROBLEMS[i] && PROBLEMS[i].title).filter(Boolean);
+    localStorage.setItem(CLEARED_KEY, JSON.stringify(titles));
+  }catch(e){}
+}
+const cleared=loadCleared(); // クリア済み問題index
 
 function buildCover(){
   // タブバー生成
