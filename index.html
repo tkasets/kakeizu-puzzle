@@ -95,6 +95,10 @@ body{
 .rule-list li{ font-size:13px; line-height:1.9; color:var(--ink); margin-bottom:8px; }
 .rule-list b{ color:var(--ink); }
 .btn-close-rule{ background:var(--ink); color:#fff; width:100%; border-radius:6px; padding:12px; }
+.modal-foot{ margin-top:16px; padding-top:12px; border-top:1px solid var(--line-soft); text-align:center; }
+.modal-foot a{ font-size:12px; font-weight:700; color:var(--accent); text-decoration:none; }
+.modal-foot .sep{ font-size:12px; color:var(--line-soft); margin:0 6px; }
+.modal-ver{ margin-top:6px; font-size:11px; color:var(--ink-soft); }
 /* ===== 動画広告オーバーレイ（「答え」を見る前に表示） =====
    現在はプレースホルダー（カウントダウン）。将来 AdSense H5 Games Ads の
    rewarded(adBreak) に差し替える想定。 */
@@ -434,6 +438,12 @@ button.action{ font-family:inherit; font-weight:700; font-size:13px; letter-spac
       <li>全部正しくつなぐと自動で〇。左下の<b>「答え」長押し</b>でヒントが見られます。</li>
     </ul>
     <button class="action btn-close-rule" id="closeRuleBtn">とじる</button>
+    <div class="modal-foot">
+      <a href="https://kakeizu.t-kasets.com/privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>
+      <span class="sep">|</span>
+      <a href="https://kakeizu.t-kasets.com/support.html" target="_blank" rel="noopener">お問い合わせ</a>
+      <div class="modal-ver">バージョン 1.0.0</div>
+    </div>
   </div>
 </div>
 
@@ -5909,6 +5919,17 @@ hintBtn.addEventListener("pointerleave",hintEnd);
 hintBtn.addEventListener("pointercancel",hintEnd);
 
 buildCover(); // 起動時は表紙
+
+/* ルール画面の外部リンク（ポリシー/問い合わせ）。
+   Web 版はそのまま新規タブ。アプリ版は WebView が game 画面ごと遷移してしまうので、
+   ネイティブ側に URL を渡して端末のブラウザで開かせる。 */
+document.querySelectorAll(".modal-foot a").forEach((a)=>{
+  a.addEventListener("click",(e)=>{
+    if(!window.ReactNativeWebView) return; // Web 版は既定動作（target=_blank）
+    e.preventDefault();
+    window.ReactNativeWebView.postMessage("OPEN_URL:"+a.href);
+  });
+});
 </script>
 </body>
 </html>

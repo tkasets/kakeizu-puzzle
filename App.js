@@ -1,5 +1,11 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { SafeAreaView, StatusBar, StyleSheet, Platform } from 'react-native';
+import {
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Platform,
+  Linking,
+} from 'react-native';
 import { WebView } from 'react-native-webview';
 import mobileAds, {
   RewardedAd,
@@ -26,6 +32,9 @@ import html from './htmlSource';
 const REWARDED_UNIT_ID = __DEV__
   ? TestIds.REWARDED
   : 'ca-app-pub-1081803676733486/3954974297';
+
+// WebView に読み込ませる HTML の見かけ上の URL。ここ以外への遷移は端末のブラウザに逃がす。
+const BASE_URL = 'https://kakeizu.local/';
 
 // 「答え」を押した時点でまだ広告が読み込めていない場合に、あきらめるまで待つ時間。
 const LOAD_WAIT_MS = 8000;
@@ -148,10 +157,15 @@ export default function App() {
     };
   }, [preloadAd]);
 
-  // WebView から「広告を見せて」と言われたとき
+  // WebView から「広告を見せて」「このURLを開いて」と言われたとき
   const onMessage = useCallback(
     (event) => {
       const msg = event.nativeEvent.data;
+      // ルール画面のポリシー/問い合わせリンク → 端末のブラウザで開く
+      if (typeof msg === 'string' && msg.startsWith('OPEN_URL:')) {
+        Linking.openURL(msg.slice('OPEN_URL:'.length)).catch(() => {});
+        return;
+      }
       if (msg !== 'SHOW_REWARDED_AD') return;
       const ad = adRef.current;
       if (ad && loadedRef.current) {
@@ -176,14 +190,27 @@ export default function App() {
     [finish, preloadAd, sendToWeb]
   );
 
+  // 保険: 何らかの経路でゲーム画面の外へ遷移しかけたら、WebView では開かず
+  // 端末のブラウザに渡す（ゲームが表示されたまま戻れなくなるのを防ぐ）。
+  const onShouldStartLoadWithRequest = useCallback((req) => {
+    const url = req.url || '';
+    if (url.startsWith(BASE_URL) || url.startsWith('about:')) return true;
+    if (/^(https?|mailto):/.test(url)) {
+      Linking.openURL(url).catch(() => {});
+    }
+    return false;
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f2ede0" />
       <WebView
         ref={webRef}
         originWhitelist={['*']}
-        source={{ html, baseUrl: 'https://kakeizu.local/' }}
+        source={{ html, baseUrl: BASE_URL }}
         onMessage={onMessage}
+        onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
+        setSupportMultipleWindows={false}
         javaScriptEnabled
         domStorageEnabled
         allowsInlineMediaPlayback
