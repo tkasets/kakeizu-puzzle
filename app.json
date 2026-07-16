@@ -29,7 +29,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": [
+      "permissions": [],
+      "blockedPermissions": [
         "com.google.android.gms.permission.AD_ID"
       ]
     },
@@ -52,12 +53,6 @@
           "iosAppId": "ca-app-pub-1081803676733486~4996593221",
           "androidAppId": "ca-app-pub-3940256099942544~3347511713",
           "delayAppMeasurementInit": true
-        }
-      ],
-      [
-        "expo-tracking-transparency",
-        {
-          "userTrackingPermission": "この識別子は、あなたに関連性の高い広告を表示するために使用されます。"
         }
       ]
     ],

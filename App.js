@@ -13,7 +13,6 @@ import mobileAds, {
   AdEventType,
   TestIds,
 } from 'react-native-google-mobile-ads';
-import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import html from './htmlSource';
 
 /*
@@ -72,8 +71,11 @@ export default function App() {
 
   // リワード広告を1本ぶん用意して先読みする。閉じたら結果を Web に返し、次を先読み。
   const preloadAd = useCallback(() => {
+    // このアプリはユーザーをトラッキングしない方針。広告識別子(IDFA)を用いた
+    // パーソナライズ広告は行わず、常に非パーソナライズ広告のみを要求する
+    // （requestNonPersonalizedAdsOnly: true）。これにより ATT ダイアログは不要になる。
     const ad = RewardedAd.createForAdRequest(REWARDED_UNIT_ID, {
-      requestNonPersonalizedAdsOnly: false,
+      requestNonPersonalizedAdsOnly: true,
     });
     earnedRef.current = false;
     loadedRef.current = false;
@@ -140,13 +142,11 @@ export default function App() {
     ad.load();
   }, [finish, sendToWeb]);
 
-  // 起動時: ATT（トラッキング許可）→ SDK 初期化 → 先読み
+  // 起動時: SDK 初期化 → 先読み。
+  // トラッキングを行わない方針のため ATT（AppTrackingTransparency）の許可要求はしない。
   useEffect(() => {
     let mounted = true;
     (async () => {
-      try {
-        await requestTrackingPermissionsAsync();
-      } catch (e) {}
       try {
         await mobileAds().initialize();
       } catch (e) {}
