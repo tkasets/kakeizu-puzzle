@@ -6,7 +6,13 @@ const path = require('path');
 const SRC = path.resolve(__dirname, '../index.html');
 const OUT = path.resolve(__dirname, '../htmlSource.js');
 
-const html = fs.readFileSync(SRC, 'utf8');
+const raw = fs.readFileSync(SRC, 'utf8');
+// AdSense はアプリ内（WebView）での使用が規約違反なので、Web 版だけに置いた
+// スクリプトをマーカーごと取り除く。アプリ側の広告は AdMob が担当する。
+const html = raw.replace(
+  /[ \t]*<!-- adsense:web-only:start -->[\s\S]*?<!-- adsense:web-only:end -->\r?\n?/g,
+  ''
+);
 // JSON.stringify にすることで、HTML 内のバッククォートや ${} を安全にエスケープする
 fs.writeFileSync(
   OUT,
