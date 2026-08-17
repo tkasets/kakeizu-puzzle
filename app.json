@@ -2,7 +2,7 @@
   "expo": {
     "name": "家系図パズル",
     "slug": "kakeizu-expo",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -10,7 +10,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.tkasets.kakeizu",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDevelopmentRegion": "ja",
+        "CFBundleLocalizations": ["ja"]
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [

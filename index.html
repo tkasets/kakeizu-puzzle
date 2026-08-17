@@ -400,6 +400,7 @@ button.action{ font-family:inherit; font-weight:700; font-size:13px; letter-spac
     <button class="btn-reset" id="resetBtn">リセット</button>
     <button class="btn-rule" id="ruleBtn">ルール</button>
   </div>
+  <div class="legend-note" id="gameNote" style="display:none;"></div>
 
   <div class="board-wrap">
   <div class="board" id="board">
@@ -553,6 +554,7 @@ const PROBLEMS = [
     category:"other",
     series:"yobina",
     sub:"「本人」から見た親族の呼び名を総ざらい。配偶者（妻）は最初から夫婦でつないであります。",
+    note:"祖父母より上（曾祖父母・高祖父母）や伯父・叔父は父方のみ。母の上に祖父母などを繋ぐと不正解。",
     cards:[
       // 直系尊属（上へ）＋各世代の配偶者
       {id:"kousofu",label:"高祖父"},{id:"kousofu_t",label:"高祖母",role:true},
@@ -3376,6 +3378,7 @@ const PROBLEMS = [
     category:"other",
     series:"shitei",
     sub:"ノーベル賞受賞者が師から弟子へと連なる系譜。電子を発見したJ.J.トムソンからラザフォード、ボーアへ。ボーアに学んだ仁科芳雄が日本に量子力学を持ち帰り、湯川秀樹・朝永振一郎を育てた。坂田昌一の研究室からは小林誠・益川敏英が出て2008年に受賞。師匠（親）の下側から弟子へ直接つなごう（配偶者なしの単独親子）。★はノーベル物理学賞受賞者。",
+    note:"★はノーベル物理学賞受賞者",
     soloParent:true, // 師弟：1人の師匠から複数の弟子が育つ分岐（配偶者なしの単独親子）
     cards:[
       {id:"thomson",label:"J.J.トムソン★"},
@@ -5039,6 +5042,11 @@ function selectProblem(idx){
   allowSoloParent = !!p.soloParent; // 配偶者なし単独親子タップの許可（問題ごと）
   const ruleSoloEl=document.getElementById("ruleSoloParent");
   if(ruleSoloEl) ruleSoloEl.style.display = allowSoloParent ? "" : "none";
+  const gameNoteEl=document.getElementById("gameNote");
+  if(gameNoteEl){
+    if(p.note){ gameNoteEl.textContent=p.note; gameNoteEl.style.display=""; }
+    else { gameNoteEl.textContent=""; gameNoteEl.style.display="none"; }
+  }
 
   // 画面切替
   coverScreen.classList.add("hidden");
